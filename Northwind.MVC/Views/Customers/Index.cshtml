@@ -1,0 +1,30 @@
+﻿@model IEnumerable<Northwind.MVC.Models.CustomerViewModel>
+
+@{
+    ViewData["Title"] = "Customers";
+}
+
+<h1>Customers</h1>
+
+<form asp-action="Index" method="get">
+    <input type="text" name="searchTerm" value="@ViewBag.Search" placeholder="Search customers..." />
+    <button type="submit">Search</button>
+</form>
+
+<table class="table table-striped mt-3">
+    <thead>
+        <tr>
+            <th>Customer Name</th>
+            <th>Orders Count</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var customer in Model)
+        {
+            <tr>
+                <td>@customer.ContactName</td>
+                <td>@customer.OrdersCount</td>
+            </tr>
+        }
+    </tbody>
+</table>
