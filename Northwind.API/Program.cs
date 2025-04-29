@@ -29,7 +29,6 @@ namespace Northwind.API
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
@@ -39,7 +38,7 @@ namespace Northwind.API
             app.UseHttpsRedirection();
 
             app.UseCors(policy => policy
-                .AllowAnyOrigin() // Or better: .WithOrigins("https://localhost:xxxx") if you know the frontend URL
+                .AllowAnyOrigin() 
                 .AllowAnyHeader()
                 .AllowAnyMethod());
 

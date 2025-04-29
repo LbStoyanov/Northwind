@@ -1,8 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Northwind.API.Contracts;
-using Northwind.API.Data;
-using Northwind.API.Models;
-using Northwind.API.Services;
 
 namespace Northwind.API.Controllers;
 
@@ -68,19 +65,24 @@ public class CustomersController : ControllerBase
     {
         try
         {
-            var orders = await _customerService.GetCustomerOrdersAsync(id);
+            var customerOrders = await _customerService.GetCustomerOrdersAsync(id);
 
-            if (orders == null)
-            {              
+            if (customerOrders == null)
+            {
                 return NotFound($"Customer with ID {id} not found.");
             }
 
-            if (!orders.Any())
+            if (!customerOrders.Orders.Any())
             {
-                return NoContent();
+                return Ok(new 
+                {
+                    customerOrders.CustomerId,
+                    customerOrders.CustomerName,
+                    Message = "This customer has no orders."
+                });
             }
-           
-            return Ok(orders);
+
+            return Ok(customerOrders);
         }
         catch (Exception ex)
         {            

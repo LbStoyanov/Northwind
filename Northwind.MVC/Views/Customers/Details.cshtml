@@ -1,0 +1,47 @@
+﻿@model Northwind.MVC.Models.CustomerDetailsViewModel
+
+@{
+    ViewData["Title"] = "Customer Details";
+}
+
+<h2>@Model.ContactName - Orders</h2>
+
+@if (!Model.Orders.Any())
+{
+        <p>This customer has no orders.</p>
+}
+else
+{
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Order Date</th>
+                    <th>Total</th>
+                    <th class="text-center">Product Count</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var order in Model.Orders)
+            {
+                        <tr>
+                            <td>@order.OrderId</td>
+                            <td>@order.OrderDate?.ToString("yyyy-MM-dd")</td>
+                            <td>@order.TotalAmount?.ToString("F2")</td>
+                            <td class="text-center">@order.NumberOfProducts</td>
+                            <td>
+                        @if (!string.IsNullOrWhiteSpace(order.WarningMessage))
+                        {
+                                        <span class="text-danger">@order.WarningMessage</span>
+                        }
+                        else
+                        {
+                                        <span class="text-success">OK</span>
+                        }
+                            </td>
+                        </tr>
+            }
+            </tbody>
+        </table>
+}

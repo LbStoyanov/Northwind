@@ -2,170 +2,186 @@ using Moq;
 using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Northwind.API.Controllers;
-using Northwind.API.Services;
-using Northwind.API.Models;
-using Xunit;
 using Northwind.API.Contracts;
+using Northwind.API.DTOs;
 
-namespace Northwind.API.Tests
+namespace Northwind.API.Tests;
+
+public class CustomersControllerTests
 {
-    public class CustomersControllerTests
+    private readonly Mock<ICustomerService> _customerServiceMock;
+    private readonly CustomersController _controller;
+
+    public CustomersControllerTests()
     {
-        private readonly Mock<ICustomerService> _customerServiceMock;
-        private readonly CustomersController _controller;
+        _customerServiceMock = new Mock<ICustomerService>();
+        _controller = new CustomersController(_customerServiceMock.Object);
+    }
 
-        public CustomersControllerTests()
-        {
-            _customerServiceMock = new Mock<ICustomerService>();
-            _controller = new CustomersController(_customerServiceMock.Object);
-        }
-
-        [Fact]
-        public async Task GetAllCustomers_ReturnsCustomers_WhenCustomersExist()
-        {
-            // Arrange: Mocking a list of customers
-            var customers = new List<Customer>
+    [Fact]
+    public async Task GetAllCustomers_ReturnsCustomers_WhenCustomersExist()
+    {
+        
+        var customers = new List<CustomerDTO>
             {
-                new Customer { CustomerId = "ALFKI", CompanyName = "Alfreds Futterkiste" },
-                new Customer { CustomerId = "ANATR", CompanyName = "Ana Trujillo Emparedados y helados" }
+                new CustomerDTO { Id = "ALFKI", Name = "Alfreds Futterkiste" },
+                new CustomerDTO { Id = "ANATR", Name = "Ana Trujillo Emparedados y helados" }
             };
 
-            _customerServiceMock
-                .Setup(service => service.GetAllCustomersAsync())
-                .ReturnsAsync(customers);
+        _customerServiceMock
+            .Setup(service => service.GetAllCustomersAsync())
+            .ReturnsAsync(customers);
 
-            // Act: Call the GetAllCustomers method
-            var result = await _controller.GetAllCustomers();
+        
+        var result = await _controller.GetAllCustomers();
 
-            // Assert: Verify the result is Ok and contains customers
-            var okResult = Assert.IsType<OkObjectResult>(result); // Should return Ok (HTTP 200)
-            var returnedCustomers = Assert.IsType<List<Customer>>(okResult.Value); // Should be a List<Customer>
+        
+        var okResult = Assert.IsType<OkObjectResult>(result); 
+        var returnedCustomers = Assert.IsType<List<CustomerDTO>>(okResult.Value); 
 
-            Assert.Equal(customers.Count, returnedCustomers.Count); // Verify the number of customers is the same
-        }
+        Assert.Equal(customers.Count, returnedCustomers.Count);
+    }
 
-        [Fact]
-        public async Task GetAllCustomers_ReturnsNoContent_WhenNoCustomers()
+    [Fact]
+    public async Task GetAllCustomers_ReturnsNoContent_WhenNoCustomers()
+    {
+       
+        _customerServiceMock
+            .Setup(service => service.GetAllCustomersAsync())
+            .ReturnsAsync(new List<CustomerDTO>());
+
+       
+        var result = await _controller.GetAllCustomers();
+
+       
+        Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task GetAllCustomers_ReturnsServerError_WhenServiceReturnsNull()
+    {
+        
+        _customerServiceMock
+            .Setup(service => service.GetAllCustomersAsync())
+            .ReturnsAsync((List<CustomerDTO>)null);  
+
+        
+        var result = await _controller.GetAllCustomers();
+
+        
+        var actionResult = Assert.IsType<ObjectResult>(result);
+        Assert.Equal((int)HttpStatusCode.InternalServerError, actionResult.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetCustomerById_ReturnsNotFound_WhenCustomerNotFound()
+    {
+       
+        var customerId = "ALFKI";
+        _customerServiceMock
+            .Setup(service => service.GetCustomerByIdAsync(customerId))
+            .ReturnsAsync((CustomerDTO)null); 
+
+       
+        var result = await _controller.GetCustomerById(customerId);
+
+        
+        var actionResult = Assert.IsType<NotFoundResult>(result); 
+    }
+
+    [Fact]
+    public async Task GetCustomerById_ReturnsCustomer_WhenCustomerFound()
+    {
+        
+        var customerId = "ALFKI";
+        var mockCustomer = new CustomerDTO { Id = customerId, Name = "Test Company", OrdersCount = 5 };
+        _customerServiceMock
+            .Setup(service => service.GetCustomerByIdAsync(customerId))
+            .ReturnsAsync(mockCustomer);  
+
+        
+        var result = await _controller.GetCustomerById(customerId);
+
+        
+        var actionResult = Assert.IsType<OkObjectResult>(result); 
+        var returnValue = Assert.IsType<CustomerDTO>(actionResult.Value);
+        Assert.Equal(customerId, returnValue.Id);
+    }
+
+    [Fact]
+    public async Task GetCustomerOrders_ReturnsNoContent_WhenNoOrders()
+    {
+        
+        var customerId = "ALFKI";
+        _customerServiceMock
+            .Setup(service => service.GetCustomerOrdersAsync(customerId))
+            .ReturnsAsync(new CustomerOrdersDTO());  
+        
+        var result = await _controller.GetCustomerOrders(customerId);
+
+        
+        var actionResult = Assert.IsType<OkObjectResult>(result); 
+    }
+
+    [Fact]
+    public async Task GetCustomerOrders_ReturnsServerError_WhenServiceThrowsException()
+    {
+        
+        var customerId = "ALFKI";
+        _customerServiceMock
+            .Setup(service => service.GetCustomerOrdersAsync(customerId))
+            .ThrowsAsync(new System.Exception("Test exception")); 
+
+        
+        var result = await _controller.GetCustomerOrders(customerId);
+
+       
+        var actionResult = Assert.IsType<ObjectResult>(result);
+        Assert.Equal((int)HttpStatusCode.InternalServerError, actionResult.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetCustomerOrders_ReturnsOrders_WhenOrdersExist()
+    {
+        
+        var customerId = "ALFKI";  
+        var mockCustomerOrders = new CustomerOrdersDTO
         {
-            // Arrange: Mocking empty customer list
-            _customerServiceMock
-                .Setup(service => service.GetAllCustomersAsync())
-                .ReturnsAsync(new List<Customer>());  // Mocking empty list
+            CustomerId = customerId,
+            CustomerName = "Alfreds Futterkiste",
+            Orders = new List<OrderSummaryDTO>
+                            {
+                                new OrderSummaryDTO
+                                {
+                                    OrderId = 1,
+                                    OrderDate = DateTime.Now,
+                                    TotalAmount = 100.00m,
+                                    NumberOfProducts = 2,
+                                    WarningMessage = null
+                                },
+                                new OrderSummaryDTO
+                                {
+                                    OrderId = 2,
+                                    OrderDate = DateTime.Now.AddDays(-1),
+                                    TotalAmount = 200.00m,
+                                    NumberOfProducts = 3,
+                                    WarningMessage = "Possible execution problem: discontinued or low stock."
+                                }
+                            }
+        };
 
-            // Act: Call the GetAllCustomers method
-            var result = await _controller.GetAllCustomers();
+        _customerServiceMock
+            .Setup(service => service.GetCustomerOrdersAsync(customerId))
+            .ReturnsAsync(mockCustomerOrders);
 
-            // Assert: Verify the result is NoContent
-            Assert.IsType<NoContentResult>(result); // Should return NoContent (HTTP 204)
-        }
+        
+        var result = await _controller.GetCustomerOrders(customerId);
 
-        [Fact]
-        public async Task GetAllCustomers_ReturnsServerError_WhenServiceReturnsNull()
-        {
-            // Arrange: Mocking null customer list (simulating error scenario)
-            _customerServiceMock
-                .Setup(service => service.GetAllCustomersAsync())
-                .ReturnsAsync((List<Customer>)null);  // Mocking null response
+        
+        var okResult = Assert.IsType<OkObjectResult>(result);  
+        var returnedOrders = Assert.IsType<CustomerOrdersDTO>(okResult.Value);  
 
-            // Act: Call the GetAllCustomers method
-            var result = await _controller.GetAllCustomers();
-
-            // Assert: Verify the result is InternalServerError (HTTP 500)
-            var actionResult = Assert.IsType<ObjectResult>(result);
-            Assert.Equal((int)HttpStatusCode.InternalServerError, actionResult.StatusCode);
-        }
-
-        [Fact]
-        public async Task GetCustomerById_ReturnsNotFound_WhenCustomerNotFound()
-        {
-            // Arrange: Mocking customer not found by ID
-            var customerId = "ALFKI";
-            _customerServiceMock
-                .Setup(service => service.GetCustomerByIdAsync(customerId))
-                .ReturnsAsync((Customer)null);  // Mocking customer not found
-
-            // Act: Call the GetCustomerById method
-            var result = await _controller.GetCustomerById(customerId);
-
-            // Assert: Verify the result is NotFound (HTTP 404)
-            var actionResult = Assert.IsType<NotFoundResult>(result); // Should return NotFound (HTTP 404)
-        }
-
-        [Fact]
-        public async Task GetCustomerById_ReturnsCustomer_WhenCustomerFound()
-        {
-            // Arrange: Mocking customer found
-            var customerId = "ALFKI";
-            var mockCustomer = new Customer { CustomerId = customerId, CompanyName = "Test Company" };
-            _customerServiceMock
-                .Setup(service => service.GetCustomerByIdAsync(customerId))
-                .ReturnsAsync(mockCustomer);  // Mocking a valid customer
-
-            // Act: Call the GetCustomerById method
-            var result = await _controller.GetCustomerById(customerId);
-
-            // Assert: Verify the result is OK (HTTP 200) with the customer data
-            var actionResult = Assert.IsType<OkObjectResult>(result); // Should return OK (HTTP 200)
-            var returnValue = Assert.IsType<Customer>(actionResult.Value);
-            Assert.Equal(customerId, returnValue.CustomerId);
-        }
-
-        [Fact]
-        public async Task GetCustomerOrders_ReturnsNoContent_WhenNoOrders()
-        {
-            // Arrange: Mocking no orders for a customer
-            var customerId = "ALFKI";
-            _customerServiceMock
-                .Setup(service => service.GetCustomerOrdersAsync(customerId))
-                .ReturnsAsync(new List<Order>());  // Mocking empty orders list
-
-            // Act: Call the GetCustomerOrders method
-            var result = await _controller.GetCustomerOrders(customerId);
-
-            // Assert: Verify the result is NoContent (HTTP 204)
-            var actionResult = Assert.IsType<NoContentResult>(result); // Should return NoContent (HTTP 204)
-        }
-
-        [Fact]
-        public async Task GetCustomerOrders_ReturnsServerError_WhenServiceThrowsException()
-        {
-            // Arrange: Mocking exception scenario in service
-            var customerId = "ALFKI";
-            _customerServiceMock
-                .Setup(service => service.GetCustomerOrdersAsync(customerId))
-                .ThrowsAsync(new System.Exception("Test exception")); // Mocking service exception
-
-            // Act: Call the GetCustomerOrders method
-            var result = await _controller.GetCustomerOrders(customerId);
-
-            // Assert: Verify the result is InternalServerError (HTTP 500)
-            var actionResult = Assert.IsType<ObjectResult>(result);
-            Assert.Equal((int)HttpStatusCode.InternalServerError, actionResult.StatusCode);
-        }
-
-        [Fact]
-        public async Task GetCustomerOrders_ReturnsOrders_WhenOrdersExist()
-        {
-            // Arrange: Mocking a list of orders
-            var customerId = "ALFKI";  // Customer with existing orders
-            var orders = new List<Order>
-            {
-                new Order { OrderId = 1, CustomerId = customerId, OrderDate = DateTime.Now },
-                new Order { OrderId = 2, CustomerId = customerId, OrderDate = DateTime.Now.AddDays(-1) }
-            };
-
-            _customerServiceMock
-                .Setup(service => service.GetCustomerOrdersAsync(customerId))
-                .ReturnsAsync(orders);  // Mocking list of orders for the customer
-
-            // Act: Call the GetCustomerOrders method
-            var result = await _controller.GetCustomerOrders(customerId);
-
-            // Assert: Verify the result is Ok and contains orders
-            var okResult = Assert.IsType<OkObjectResult>(result);  // Should return Ok (HTTP 200)
-            var returnedOrders = Assert.IsType<List<Order>>(okResult.Value);  // Should be a List<Order>
-
-            Assert.Equal(orders.Count, returnedOrders.Count);  // Verify the number of orders is the same
-        }
+        Assert.Equal(mockCustomerOrders.Orders.Count, returnedOrders.Orders.Count);  
     }
 }
+

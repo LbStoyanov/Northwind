@@ -1,8 +1,8 @@
 ﻿namespace Northwind.MVC.Models;
-public class CustomerViewModel
+
+public class CustomerDetailsViewModel
 {
     public string CustomerId { get; set; } = string.Empty;
     public string ContactName { get; set; } = string.Empty;
-    public int OrdersCount { get; set; }
+    public List<OrderViewModel> Orders { get; set; } = new();
 }
-

@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Northwind.API.Contracts;
-using Northwind.API.Models;
+using Northwind.API.DTOs;
 
 namespace Northwind.API.Services;
 public class CustomerService : ICustomerService
@@ -12,13 +12,21 @@ public class CustomerService : ICustomerService
         _context = context;
     }
 
-    public async Task<IEnumerable<Customer>?> GetAllCustomersAsync()
+    public async Task<IEnumerable<CustomerDTO>?> GetAllCustomersAsync()
     {
 
         try
         {
-            var customers = await _context.Customers.ToListAsync();
-            return customers;
+            var customerDtos = await _context.Customers
+           .Select(c => new CustomerDTO
+           {
+               Id = c.CustomerId,
+               Name = c.ContactName ?? "N/A",
+               OrdersCount = c.Orders.Count
+           })
+           .ToListAsync();
+
+            return customerDtos;
         }
         catch (Exception ex)
         {
@@ -29,13 +37,21 @@ public class CustomerService : ICustomerService
 
     }
 
-    public async Task<Customer?> GetCustomerByIdAsync(string customerId)
+    public async Task<CustomerDTO?> GetCustomerByIdAsync(string customerId)
     {
         try
         {
-            var customer = await _context.Customers
-                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
-            return customer;
+            var customerDto = await _context.Customers
+            .Where(c => c.CustomerId == customerId)
+            .Select(c => new CustomerDTO
+            {
+                Id = c.CustomerId,
+                Name = string.IsNullOrWhiteSpace(c.ContactName) ? "N/A" : c.ContactName,
+                OrdersCount = c.Orders.Count
+            })
+            .FirstOrDefaultAsync();
+
+            return customerDto;
         }
         catch (Exception ex)
         {
@@ -45,22 +61,38 @@ public class CustomerService : ICustomerService
         }
     }
 
-    public async Task<IEnumerable<Order>?> GetCustomerOrdersAsync(string customerId)
+    public async Task<CustomerOrdersDTO?> GetCustomerOrdersAsync(string customerId)
     {
 
         try
         {
-            var customer = await _context.Customers
-                                          .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+            var customerOrders = await _context.Customers
+            .Where(c => c.CustomerId == customerId)
+            .Select(c => new CustomerOrdersDTO
+            {
+                CustomerId = c.CustomerId,
+                CustomerName = string.IsNullOrWhiteSpace(c.ContactName) ? "N/A" : c.ContactName,
+                Orders = c.Orders.Select(o => new OrderSummaryDTO
+                {
+                    OrderId = o.OrderId,
+                    OrderDate = o.OrderDate,
+                    TotalAmount = decimal
+                    .Parse(Math.Round(o.OrderDetails.Sum(od => od.UnitPrice * od.Quantity * (1 - (decimal)od.Discount)), 2)
+                    .ToString("0.00")),
 
-            if (customer == null)
-                return null; 
+                    NumberOfProducts = o.OrderDetails.Count,
 
-            var orders = await _context.Orders
-                                       .Where(o => o.CustomerId == customerId)
-                                       .ToListAsync();
+                    WarningMessage = o.OrderDetails
+                        .Any(od =>
+                            od.Product.Discontinued ||
+                            od.Product.UnitsInStock < od.Product.UnitsOnOrder)
+                        ? "Possible execution problem: discontinued or low stock."
+                        : null
+                }).ToList()
+            })
+            .FirstOrDefaultAsync();
 
-            return orders;
+            return customerOrders;
         }
         catch (Exception ex)
         {

@@ -1,80 +1,41 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Northwind.MVC.Services;
+using Northwind.MVC.Contracts;
 using Northwind.MVC.Models;
-using Newtonsoft.Json;
+
 
 namespace Northwind.MVC.Controllers;
 
-
 public class CustomersController : Controller
 {
-    private readonly HttpClient _httpClient;
-    private readonly string _apiBaseUrl = "https://localhost:7128/api/customers"; // Update if needed
+    private readonly ICustomerService _customerService;
 
-    public CustomersController(HttpClient httpClient)
+    public CustomersController(ICustomerService customerService)
     {
-        _httpClient = httpClient;
+        _customerService = customerService;
     }
 
-    public async Task<IActionResult> Index(string searchTerm)
+    public async Task<IActionResult> Index(string? searchTerm)
     {
-        List<CustomerViewModel> customers;
-
-        // If there is a search term, perform the search
-        if (!string.IsNullOrEmpty(searchTerm))
-        {
-            var allCustomersResponse = await _httpClient.GetAsync(_apiBaseUrl);
-            if (!allCustomersResponse.IsSuccessStatusCode)
-                return StatusCode((int)allCustomersResponse.StatusCode);
-
-            var allCustomersJson = await allCustomersResponse.Content.ReadAsStringAsync();
-            var allCustomers = JsonConvert.DeserializeObject<List<CustomerDto>>(allCustomersJson);
-
-            var customer = allCustomers.FirstOrDefault(c =>
-                c.ContactName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
-
-            if (customer != null)
-            {
-                // Return only the found customer
-                var singleCustomerViewModel = new CustomerViewModel
-                {
-                    CustomerId = customer.CustomerId,
-                    ContactName = customer.ContactName,
-                    OrdersCount = customer.Orders?.Count ?? 0
-                };
-
-                customers = new List<CustomerViewModel> { singleCustomerViewModel };
-            }
-            else
-            {
-                // If no customer found, return an empty list
-                customers = new List<CustomerViewModel>();
-            }
-        }
-        else
-        {
-            // If there is no search term, return all customers
-            var response = await _httpClient.GetAsync(_apiBaseUrl);
-            if (!response.IsSuccessStatusCode)
-                return StatusCode((int)response.StatusCode);
-
-            var json = await response.Content.ReadAsStringAsync();
-
-            // Deserialize DTOs
-            var customerDtos = JsonConvert.DeserializeObject<List<CustomerDto>>(json);
-
-            // Map DTOs to ViewModels
-            customers = customerDtos.Select(c => new CustomerViewModel
-            {
-                CustomerId = c.CustomerId,
-                ContactName = c.ContactName,
-                OrdersCount = c.Orders?.Count ?? 0
-            }).ToList();
-        }
-
+        var customers = await _customerService.GetCustomersAsync(searchTerm);
+        ViewBag.Search = searchTerm;
         return View(customers);
     }
 
+    public async Task<IActionResult> Details(string id)
+    {
+        var customer = await _customerService.GetCustomerByIdAsync(id);
+        var orders = await _customerService.GetCustomerOrdersAsync(id);
+
+        if (customer == null)
+            return NotFound();
+
+        var viewModel = new CustomerDetailsViewModel
+        {
+            CustomerId = customer.Id,
+            ContactName = customer.Name,
+            Orders = orders.ToList()
+        };
+
+        return View(viewModel);
+    }
 }
-
-
