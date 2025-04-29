@@ -1,4 +1,4 @@
-# Northwind
+# CustomerOrders
 
 ## Database Setup
 
