@@ -10,7 +10,7 @@ If you're using LocalDb, no additional setup is required. However, if you're usi
   For example, if you're using LocalDb:
   ```json
   "ConnectionStrings": {
-    "NorthwindDatabase": "Server=(LocalDb)\\MSSQLLocalDB;Database=Northwind;Trusted_Connection=True;"
+    "NorthwindDatabase": "Server=(LocalDb)\\YOUR SERVER NAME;Database=Northwind;Trusted_Connection=True;"
   }
 
 
@@ -28,5 +28,9 @@ If you're running the API on a different port, you must adjust the URL in the MV
 - Change `https://localhost:7128` to the appropriate URL and port where your API is running.
 -  Ensure the API is configured to run on the correct port. This can be modified in the          launchSettings.json file under the Profiles section: "applicationUrl": "https://localhost:5001" // Change the port here if necessary
 
-
+## Running Both Projects
+- In Visual Studio, right-click on the solution and choose: Set Startup Projects
+- Choose the "Multiple startup projects" option.
+- Set the Action for both Northwind.API and Northwind.MVC to Start.
+- Click OK and then run the solution.
 
